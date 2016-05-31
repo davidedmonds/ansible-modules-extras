@@ -358,24 +358,25 @@ def main():
     for item in data:
         namespace = "default"
         if item and 'metadata' in item:
-            namespace = item.get('metadata', {}).get('namespace', "default")
-            kind = item.get('kind', '').lower()
+            parsed_item = yaml.load(item)
+            namespace = parsed_item.get('metadata', {}).get('namespace', "default")
+            kind = parsed_item.get('kind', '').lower()
             try:
                 url = target_endpoint + KIND_URL[kind]
             except KeyError:
-                module.fail_json("invalid resource kind specified in the data: '%s'" % kind)
+                module.fail_json(msg="invalid resource kind specified in the data: '%s'" % kind)
             url = url.replace("{namespace}", namespace)
         else:
             url = target_endpoint
 
         if state == 'present':
-            item_changed, item_body = k8s_create_resource(module, url, item)
+            item_changed, item_body = k8s_create_resource(module, url, parsed_item)
         elif state == 'absent':
-            item_changed, item_body = k8s_delete_resource(module, url, item)
+            item_changed, item_body = k8s_delete_resource(module, url, parsed_item)
         elif state == 'replace':
-            item_changed, item_body = k8s_replace_resource(module, url, item)
+            item_changed, item_body = k8s_replace_resource(module, url, parsed_item)
         elif state == 'update':
-            item_changed, item_body = k8s_update_resource(module, url, item)
+            item_changed, item_body = k8s_update_resource(module, url, parsed_item)
 
         changed |= item_changed
         body.append(item_body)
