@@ -191,6 +191,7 @@ import base64
 
 KIND_URL = {
     "binding": "/api/v1/namespaces/{namespace}/bindings",
+    "deployment": "/apis/extensions/v1beta1/namespaces/{namespace}/deployments",
     "endpoints": "/api/v1/namespaces/{namespace}/endpoints",
     "limitrange": "/api/v1/namespaces/{namespace}/limitranges",
     "namespace": "/api/v1/namespaces",
@@ -249,7 +250,7 @@ def k8s_create_resource(module, url, data):
         info, body = api_request(module, url + "/" + name)
         return False, body
     elif info['status'] >= 400:
-        module.fail_json(msg="failed to create the resource: %s" % info['msg'], url=url)
+        module.fail_json(msg="failed to create the resource: %s" % info, url=url)
     return True, body
 
 
@@ -290,12 +291,14 @@ def k8s_update_resource(module, url, data):
         module.fail_json(msg="Missing a named resource in object metadata when trying to update a resource")
 
     headers = {"Content-Type": "application/strategic-merge-patch+json"}
-    url = url + '/' + name
-    info, body = api_request(module, url, method="PATCH", data=data, headers=headers)
+    new_url = url + '/' + name
+    info, body = api_request(module, new_url, method="PATCH", data=data, headers=headers)
     if info['status'] == 409:
         name = data["metadata"].get("name", None)
-        info, body = api_request(module, url + "/" + name)
+        info, body = api_request(module, new_url + "/" + name)
         return False, body
+    elif info['status'] == 404:
+        return k8s_create_resource(module, url, data)
     elif info['status'] >= 400:
         module.fail_json(msg="failed to update the resource '%s': %s" % (name, info['msg']), url=url)
     return True, body
